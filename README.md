@@ -6,7 +6,7 @@ The original video shows a microcontroller pretending to be a USB drive over MTP
 
 ## How to use
 
-- Open the [live demo](https://YOUR-USERNAME.github.io/YOUR-REPO/), **or**
+- Open the [live demo](https://chemix444.github.io/everyfile.sys/), **or**
 - Download `index.html` and open it in any modern browser. No build steps, no dependencies.
 
 ## What it does
@@ -31,4 +31,4 @@ The original video shows a microcontroller pretending to be a USB drive over MTP
 
 ## Credits
 
-Concept and original implementation by [PortalRunner](https://www.youtube.com/@PortalRunner1). This is a fan recreation for fun and learning.
+Concept and original implementation by [PortalRunner](https://www.youtube.com/@PortalRunner). This is a fan recreation for fun and learning.
