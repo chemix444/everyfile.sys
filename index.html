@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVERYFILE.SYS — The Infinite Flash Drive</title>
+<style>
+  :root{
+    --desk:#2E7E7E;
+    --face:#D6D2C9;
+    --face-dark:#C2BEB4;
+    --bevel-hi:#FFFFFF;
+    --bevel-mid:#9B968C;
+    --bevel-lo:#4A4742;
+    --ink:#1B1A17;
+    --title-a:#101A5E;
+    --title-b:#3C5BB5;
+    --sel:#0A246A;
+    --led:#2FA64A;
+    --led-dim:#1A5C2B;
+    --warn:#8A3B12;
+    --mono:Consolas,'IBM Plex Mono',Menlo,'Courier New',monospace;
+    --ui:Tahoma,Geneva,Verdana,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--desk);
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 0);
+    background-size:6px 6px;
+    font-family:var(--ui);
+    color:var(--ink);
+    font-size:13px;
+    padding:24px 16px 48px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:20px;
+  }
+
+  /* ---------- window chrome ---------- */
+  .win{
+    width:100%;
+    max-width:860px;
+    background:var(--face);
+    border:2px solid;
+    border-color:var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+    box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  }
+  .titlebar{
+    display:flex;align-items:center;gap:8px;
+    background:linear-gradient(90deg,var(--title-a),var(--title-b));
+    color:#fff;padding:4px 6px;
+    font-weight:700;letter-spacing:.2px;
+    user-select:none;
+  }
+  .titlebar .led{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--led-dim);
+    border:1px solid #0d2e15;
+    flex:none;
+  }
+  .titlebar .led.on{background:var(--led);box-shadow:0 0 6px var(--led)}
+  .titlebar .t{flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--ui)}
+  .titlebar .btns{display:flex;gap:3px}
+  .tbtn{
+    width:18px;height:16px;background:var(--face);
+    border:1px solid;border-color:var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+    font-size:10px;line-height:13px;text-align:center;color:var(--ink);
+    font-family:var(--ui);cursor:default;
+  }
+  .winbody{padding:8px}
+
+  /* ---------- toolbar / address ---------- */
+  .toolbar{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  button{
+    font-family:var(--ui);font-size:12px;color:var(--ink);
+    background:var(--face);
+    border:2px solid;border-color:var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);
+    padding:3px 12px;cursor:pointer;
+  }
+  button:active{border-color:var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo)}
+  button:focus-visible{outline:2px dotted var(--ink);outline-offset:-5px}
+  button:disabled{color:var(--bevel-mid);cursor:default}
+  .addr{
+    flex:1;min-width:200px;display:flex;align-items:center;gap:6px;
+    background:#fff;
+    border:2px solid;border-color:var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+    padding:3px 6px;overflow:hidden;
+  }
+  .addr label{font-size:11px;color:var(--bevel-lo);flex:none}
+  .addr .path{
+    font-family:var(--mono);font-size:12px;white-space:nowrap;
+    overflow-x:auto;flex:1;scrollbar-width:thin;
+  }
+  .addr .path b{color:var(--sel)}
+
+  /* ---------- explorer panes ---------- */
+  .panes{display:flex;gap:8px;min-height:340px}
+  .pane{
+    background:#fff;
+    border:2px solid;border-color:var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .pane-folders{flex:1.1;min-width:0}
+  .pane-file{flex:1;min-width:0}
+  .pane-head{
+    background:var(--face-dark);
+    border-bottom:1px solid var(--bevel-mid);
+    padding:3px 8px;font-size:11px;font-weight:700;
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+  }
+  .pane-head .sub{font-weight:400;color:var(--bevel-lo);font-family:var(--mono);font-size:10px}
+  .scroll{overflow-y:auto;flex:1;padding:4px}
+
+  .entry{
+    display:flex;align-items:center;gap:7px;
+    padding:2px 6px;cursor:pointer;border:1px dotted transparent;
+    font-size:12px;font-family:var(--mono);
+    width:100%;background:none;text-align:left;
+    border-width:1px;border-style:dotted;border-color:transparent;
+  }
+  .entry:hover{background:#E8E6FF}
+  .entry:focus-visible{border-color:var(--ink);outline:none}
+  .entry.filerow{font-family:var(--ui);font-weight:700;border-bottom:1px solid var(--face-dark);margin-bottom:3px;padding-bottom:4px}
+  .ico{flex:none;width:16px;height:13px;position:relative}
+  .ico-folder{background:#F4C44E;border:1px solid #7a5c0f;border-radius:0 2px 2px 2px}
+  .ico-folder::before{content:"";position:absolute;top:-4px;left:0;width:8px;height:4px;background:#F4C44E;border:1px solid #7a5c0f;border-bottom:none;border-radius:2px 2px 0 0}
+  .ico-file{background:#fff;border:1px solid #555;width:12px;height:15px;margin:0 2px}
+  .ico-file::before{content:"";position:absolute;top:3px;left:4px;width:6px;height:1px;background:#999;box-shadow:0 3px 0 #999,0 6px 0 #999}
+  .more{
+    text-align:center;font-size:11px;color:var(--bevel-lo);
+    padding:6px;font-style:italic;
+  }
+  .jump{display:flex;gap:4px;align-items:center;padding:4px 6px;border-bottom:1px solid var(--face-dark);background:#FCFBF7}
+  .jump input{
+    font-family:var(--mono);font-size:12px;width:48px;text-transform:none;
+    border:1px solid var(--bevel-mid);padding:2px 4px;
+  }
+  .jump span{font-size:10px;color:var(--bevel-lo)}
+
+  /* ---------- file viewer ---------- */
+  .fileview{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-all;padding:8px;flex:1;overflow-y:auto}
+  .fileview.empty{color:var(--bevel-mid);font-style:italic;font-family:var(--ui)}
+  .filemeta{
+    border-top:1px solid var(--face-dark);background:#FCFBF7;
+    padding:4px 8px;font-size:10px;font-family:var(--mono);color:var(--bevel-lo);
+    display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  }
+  .viewtoggle{display:flex;gap:0}
+  .viewtoggle button{padding:1px 8px;font-size:10px}
+  .viewtoggle button[aria-pressed="true"]{border-color:var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);background:var(--face-dark)}
+
+  /* ---------- status bar ---------- */
+  .status{
+    display:flex;gap:2px;margin-top:8px;font-size:11px;
+  }
+  .status .cell{
+    background:var(--face);
+    border:1px solid;border-color:var(--bevel-mid) var(--bevel-hi) var(--bevel-hi) var(--bevel-mid);
+    padding:2px 8px;font-family:var(--mono);
+  }
+  .status .cell.grow{flex:1}
+  .status .free{color:var(--led-dim);font-weight:700}
+
+  /* ---------- locator ---------- */
+  .locator textarea{
+    width:100%;font-family:var(--mono);font-size:12px;
+    border:2px solid;border-color:var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+    padding:6px;resize:vertical;min-height:64px;background:#fff;color:var(--ink);
+  }
+  .locator .row{display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap}
+  .locator .result{
+    margin-top:8px;background:#10130E;color:#9FE2A8;
+    font-family:var(--mono);font-size:11px;padding:8px;
+    border:2px solid;border-color:var(--bevel-lo) var(--bevel-hi) var(--bevel-hi) var(--bevel-lo);
+    word-break:break-all;max-height:120px;overflow-y:auto;display:none;
+  }
+  .locator .result.show{display:block}
+  .locator .hint{font-size:11px;color:var(--bevel-lo);margin-top:6px}
+
+  /* ---------- about ---------- */
+  .about p{margin-bottom:8px;line-height:1.5}
+  .about code{font-family:var(--mono);background:#fff;border:1px solid var(--bevel-mid);padding:0 3px;font-size:11px}
+  .about .num{
+    font-family:var(--mono);font-size:11px;background:#fff;
+    border:1px solid var(--bevel-mid);padding:6px 8px;margin:6px 0 10px;
+    overflow-x:auto;white-space:nowrap;
+  }
+  details summary{cursor:pointer;font-weight:700;padding:4px 0}
+
+  @media (max-width:680px){
+    .panes{flex-direction:column}
+    .pane{min-height:220px}
+    body{padding:12px 8px 32px}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .led.on{animation:blink 1.1s steps(2,end) infinite}
+    @keyframes blink{50%{box-shadow:none;background:var(--led-dim)}}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ EXPLORER WINDOW ============ -->
+<div class="win" role="region" aria-label="File explorer">
+  <div class="titlebar">
+    <span class="led on" id="led" aria-hidden="true"></span>
+    <span class="t">EVERYFILE.SYS — Removable Device (MTP) — ∞ bytes free</span>
+    <span class="btns" aria-hidden="true"><span class="tbtn">_</span><span class="tbtn">□</span><span class="tbtn">×</span></span>
+  </div>
+  <div class="winbody">
+    <div class="toolbar">
+      <button id="btnUp" disabled>⬑ Up</button>
+      <button id="btnRoot" disabled>Root</button>
+      <div class="addr">
+        <label for="pathBox">Address:</label>
+        <div class="path" id="pathBox" tabindex="0"><b>E:\</b></div>
+      </div>
+      <button id="btnCopyPath">Copy path</button>
+    </div>
+
+    <div class="panes">
+      <div class="pane pane-folders">
+        <div class="pane-head">
+          <span>Folders in this directory</span>
+          <span class="sub" id="folderCount">4,900 items</span>
+        </div>
+        <div class="jump">
+          <label for="jumpInput"><span>go to folder:</span></label>
+          <input id="jumpInput" maxlength="2" spellcheck="false" autocomplete="off" aria-label="Type a two character folder name and press Enter">
+          <span>type 2 chars, press Enter</span>
+        </div>
+        <div class="scroll" id="folderList" tabindex="0"></div>
+      </div>
+
+      <div class="pane pane-file">
+        <div class="pane-head">
+          <span>📄 contents.bin — the file at this path</span>
+          <span class="viewtoggle">
+            <button id="vText" aria-pressed="true">text</button>
+            <button id="vHex" aria-pressed="false">hex</button>
+          </span>
+        </div>
+        <div class="fileview empty" id="fileView">(empty file — you are at the root. every path below decodes to a different file. keep clicking.)</div>
+        <div class="filemeta">
+          <span id="fileSize">0 bytes</span>
+          <span id="fileNote">path = cipher · contents = decryption</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="cell grow" id="statusMsg">Ready. This device generates every folder on request — nothing is stored.</div>
+      <div class="cell">depth: <span id="depthCell">0</span></div>
+      <div class="cell free">free space: ∞</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOCATOR WINDOW ============ -->
+<div class="win locator" role="region" aria-label="File locator">
+  <div class="titlebar">
+    <span class="led" aria-hidden="true"></span>
+    <span class="t">LOCATE.EXE — Find any file on the drive</span>
+    <span class="btns" aria-hidden="true"><span class="tbtn">_</span><span class="tbtn">×</span></span>
+  </div>
+  <div class="winbody">
+    <label for="locInput" style="display:block;margin-bottom:6px">
+      Every file already exists on this drive. Type anything, and LOCATE.EXE will compute the exact folder path where it lives:
+    </label>
+    <textarea id="locInput" spellcheck="false" placeholder="e.g. paste a sentence, a password, the script of a video…"></textarea>
+    <div class="row">
+      <button id="btnLocate">Find this file</button>
+      <button id="btnJump" disabled>Open its folder in the explorer ↑</button>
+      <button id="btnCopyLoc" disabled>Copy path</button>
+    </div>
+    <div class="result" id="locResult" aria-live="polite"></div>
+    <p class="hint">no files are created when you do this. the path <em>is</em> the file — the explorer just decodes it back into bytes when you arrive.</p>
+  </div>
+</div>
+
+<!-- ============ ABOUT WINDOW ============ -->
+<div class="win about" role="region" aria-label="How it works">
+  <div class="titlebar">
+    <span class="led" aria-hidden="true"></span>
+    <span class="t">README.TXT — How a flash drive holds every file</span>
+    <span class="btns" aria-hidden="true"><span class="tbtn">×</span></span>
+  </div>
+  <div class="winbody">
+    <p>This is a recreation of PortalRunner's "infinite flash drive": a microcontroller that pretends to be a USB storage device. It can't use a normal file system, because real file systems map files to finite, non-overlapping memory addresses. Instead it speaks <strong>MTP</strong> (the Media Transfer Protocol your phone uses), where the device is free to answer "what's in this folder?" with anything it likes — including the same 4,900 folders, forever.</p>
+
+    <details>
+      <summary>The trick: a file path is just a big number</summary>
+      <p style="margin-top:6px">Each level has <code>4,900</code> folders (a 70-character alphabet, two characters per name, so 70 × 70 combinations). Your path through the folders is read as one giant <strong>base-4,900 number</strong>, one digit per folder:</p>
+      <div class="num">path  /Qf/3x/aa/…  →  digits [2118, 263, 1, …]  →  one big integer</div>
+      <p>To turn that number into a file, it gets re-written in <strong>base 256</strong>, since every byte of a file has 256 possible values. One wrinkle: numbers can't start with leading zeros, but files absolutely can start with null bytes. The fix is an offset trick — every digit is shifted by one before conversion (bijective numeration), so <em>every</em> byte sequence, including ones full of zeros, has exactly one path and every path has exactly one file. No duplicates, no gaps.</p>
+      <div class="num">bytes  [0x48, 0x69]  ("Hi")  ⇄  integer 18,793  ⇄  folder digits [4, 3893]  ⇄  path /AD/wj</div>
+      <p>That's also why LOCATE.EXE works: finding a file is just running the same conversion backwards. Nothing is searched and nothing is stored — the math is the index.</p>
+    </details>
+
+    <details>
+      <summary>Why 4,900 folders and 2-character names?</summary>
+      <p style="margin-top:6px">File browsers choke past roughly 5,000 icons in one folder, and they also cap the total length of a path. So the design has to pack the most information into the shortest path while staying under ~5,000 entries per level. Brute-forcing the combinations of alphabet size and name length gives the optimum: a 70-symbol alphabet, two symbols per folder name. Not glamorous, but it wins.</p>
+    </details>
+
+    <details>
+      <summary>What's simulated here vs. the real device</summary>
+      <p style="margin-top:6px">The real build runs C on a $10 AliExpress microcontroller with an SD slot, answering MTP requests over USB. This page simulates the same logic in your browser: the folder listings are generated on the fly, the address bar is the cipher, and the file viewer is the decryption. The 32-bit MTP object-ID limit and the path-length wall still exist on real hardware — here, your scroll wheel is the only limit.</p>
+    </details>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- the math ---------- */
+  const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_~!@#&+";
+  const A = BigInt(ALPHABET.length);            // 70
+  const BASE = A * A;                            // 4900 folders per level
+  const BASE_N = Number(BASE);
+  const B256 = 256n;
+
+  // folder index (0..4899) <-> 2-char name
+  function idxToName(i){
+    return ALPHABET[Math.floor(i / 70)] + ALPHABET[i % 70];
+  }
+  function nameToIdx(s){
+    if (s.length !== 2) return -1;
+    const a = ALPHABET.indexOf(s[0]), b = ALPHABET.indexOf(s[1]);
+    if (a < 0 || b < 0) return -1;
+    return a * 70 + b;
+  }
+
+  // bijective numeration: byte string <-> BigInt <-> digit string (digits 1..k)
+  function bytesToValue(bytes){
+    let v = 0n;
+    for (const b of bytes) v = v * B256 + BigInt(b) + 1n;
+    return v;
+  }
+  function valueToBytes(v){
+    const out = [];
+    while (v > 0n){
+      const d = ((v - 1n) % B256) + 1n;
+      out.push(Number(d - 1n));
+      v = (v - d) / B256;
+    }
+    return new Uint8Array(out.reverse());
+  }
+  function digitsToValue(digits){       // digits = folder indices 0..4899
+    let v = 0n;
+    for (const d of digits) v = v * BASE + BigInt(d) + 1n;
+    return v;
+  }
+  function valueToDigits(v){
+    const out = [];
+    while (v > 0n){
+      const d = ((v - 1n) % BASE) + 1n;
+      out.push(Number(d - 1n));
+      v = (v - d) / BASE;
+    }
+    return out.reverse();
+  }
+  const pathToBytes  = (digits) => valueToBytes(digitsToValue(digits));
+  const bytesToPath  = (bytes)  => valueToDigits(bytesToValue(bytes));
+
+  /* ---------- state ---------- */
+  let path = [];          // array of folder indices
+  let hexMode = false;
+  let renderedRows = 0;
+  const CHUNK = 245;      // rows appended per scroll chunk
+
+  /* ---------- dom ---------- */
+  const $ = (id) => document.getElementById(id);
+  const folderList = $("folderList"), pathBox = $("pathBox"),
+        fileView = $("fileView"), fileSize = $("fileSize"),
+        statusMsg = $("statusMsg"), depthCell = $("depthCell"),
+        btnUp = $("btnUp"), btnRoot = $("btnRoot"), led = $("led");
+
+  /* ---------- explorer rendering ---------- */
+  function pathString(){
+    return "E:\\" + path.map(idxToName).join("\\") + (path.length ? "\\" : "");
+  }
+
+  function renderPath(){
+    pathBox.innerHTML = "";
+    const b = document.createElement("b");
+    b.textContent = "E:\\";
+    pathBox.appendChild(b);
+    pathBox.appendChild(document.createTextNode(path.map(idxToName).join("\\") + (path.length ? "\\" : "")));
+    pathBox.scrollLeft = pathBox.scrollWidth;
+    depthCell.textContent = path.length;
+    btnUp.disabled = btnRoot.disabled = path.length === 0;
+  }
+
+  function renderFile(){
+    const bytes = pathToBytes(path);
+    fileSize.textContent = bytes.length.toLocaleString() + (bytes.length === 1 ? " byte" : " bytes");
+    if (bytes.length === 0){
+      fileView.className = "fileview empty";
+      fileView.textContent = "(empty file — you are at the root. every path below decodes to a different file. keep clicking.)";
+      return;
+    }
+    fileView.className = "fileview";
+    if (hexMode){
+      let s = "";
+      for (let i = 0; i < bytes.length; i += 16){
+        const row = Array.from(bytes.slice(i, i + 16));
+        s += i.toString(16).padStart(6,"0") + "  "
+           + row.map(b => b.toString(16).padStart(2,"0")).join(" ").padEnd(47," ") + "  "
+           + row.map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : "·").join("") + "\n";
+        if (i > 8192) { s += "… (truncated view)"; break; }
+      }
+      fileView.textContent = s;
+    } else {
+      const text = new TextDecoder("utf-8", {fatal:false}).decode(bytes);
+      fileView.textContent = text;
+    }
+  }
+
+  function makeRow(i){
+    const b = document.createElement("button");
+    b.className = "entry";
+    b.innerHTML = '<span class="ico ico-folder" aria-hidden="true"></span>';
+    b.appendChild(document.createTextNode(idxToName(i)));
+    b.addEventListener("click", () => enter(i));
+    return b;
+  }
+
+  function renderFolders(){
+    folderList.innerHTML = "";
+    renderedRows = 0;
+    appendChunk();
+    folderList.scrollTop = 0;
+  }
+
+  function appendChunk(){
+    const frag = document.createDocumentFragment();
+    const end = Math.min(renderedRows + CHUNK, BASE_N);
+    for (let i = renderedRows; i < end; i++) frag.appendChild(makeRow(i));
+    renderedRows = end;
+    const old = folderList.querySelector(".more");
+    if (old) old.remove();
+    folderList.appendChild(frag);
+    if (renderedRows < BASE_N){
+      const m = document.createElement("div");
+      m.className = "more";
+      m.textContent = "scroll for more — " + (BASE_N - renderedRows).toLocaleString() + " folders below (generated on request)";
+      folderList.appendChild(m);
+    }
+  }
+
+  folderList.addEventListener("scroll", () => {
+    if (renderedRows >= BASE_N) return;
+    if (folderList.scrollTop + folderList.clientHeight > folderList.scrollHeight - 400) appendChunk();
+  });
+
+  function blinkStatus(msg){
+    statusMsg.textContent = msg;
+    led.classList.add("on");
+  }
+
+  function refresh(msg){
+    renderPath();
+    renderFolders();
+    renderFile();
+    if (msg) blinkStatus(msg);
+  }
+
+  function enter(i){
+    path.push(i);
+    refresh("Generated 4,900 folders for \\" + idxToName(i) + " — still nothing stored.");
+  }
+
+  /* ---------- toolbar ---------- */
+  btnUp.addEventListener("click", () => { path.pop(); refresh("Went up one level."); });
+  btnRoot.addEventListener("click", () => { path = []; refresh("Back at the root."); });
+  $("btnCopyPath").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(pathString()); blinkStatus("Path copied to clipboard."); }
+    catch(e){ blinkStatus("Couldn't access the clipboard — select the address bar text instead."); }
+  });
+
+  $("jumpInput").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const i = nameToIdx(e.target.value);
+    if (i < 0){ blinkStatus("No folder named \"" + e.target.value + "\" — names use 2 characters from the 70-symbol alphabet."); return; }
+    e.target.value = "";
+    enter(i);
+  });
+
+  $("vText").addEventListener("click", () => setView(false));
+  $("vHex").addEventListener("click", () => setView(true));
+  function setView(hex){
+    hexMode = hex;
+    $("vText").setAttribute("aria-pressed", String(!hex));
+    $("vHex").setAttribute("aria-pressed", String(hex));
+    renderFile();
+  }
+
+  /* ---------- locator ---------- */
+  let located = null;
+  const locResult = $("locResult"), btnJump = $("btnJump"), btnCopyLoc = $("btnCopyLoc");
+
+  $("btnLocate").addEventListener("click", () => {
+    const text = $("locInput").value;
+    const bytes = new TextEncoder().encode(text);
+    if (bytes.length > 4096){
+      locResult.className = "result show";
+      locResult.textContent = "That file is " + bytes.length.toLocaleString() +
+        " bytes — it exists on the drive, but its path would be longer than this page wants to print. Try something under 4 KB.";
+      btnJump.disabled = btnCopyLoc.disabled = true;
+      located = null;
+      return;
+    }
+    located = bytesToPath(bytes);
+    const p = "E:\\" + located.map(idxToName).join("\\") + (located.length ? "\\" : "") + "contents.bin";
+    locResult.className = "result show";
+    locResult.textContent = (bytes.length === 0)
+      ? "the empty file lives at the root: E:\\contents.bin"
+      : "found it. your file already exists at:\n\n" + p + "\n\n(" + located.length + " folders deep, " + bytes.length + " bytes)";
+    btnJump.disabled = btnCopyLoc.disabled = false;
+  });
+
+  btnJump.addEventListener("click", () => {
+    if (!located) return;
+    path = located.slice();
+    refresh("Jumped to the located file — check the viewer on the right.");
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
+
+  btnCopyLoc.addEventListener("click", async () => {
+    if (!located) return;
+    const p = "E:\\" + located.map(idxToName).join("\\");
+    try { await navigator.clipboard.writeText(p); locResult.textContent += "\n\n(copied)"; } catch(e){}
+  });
+
+  /* ---------- boot ---------- */
+  refresh();
+})();
+</script>
+</body>
+</html>
